@@ -1,81 +1,43 @@
-﻿using Microsoft.Extensions.Configuration;
-using SimpleCurrencyApp.classes;
-using System;
+﻿using System;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Text.Json;
 
-namespace SimpleCurrencyApp
+namespace StockTicker
 {
-    internal class Program
+    class Program
     {
-        static async Task Main()
+        static async Task Main(string[] args)
         {
-            Console.WriteLine("Welcome to the currency converter app");
+            Console.WriteLine("Enter the stock ticker:");
+            string ticker = Console.ReadLine();
 
-            // Get configuration data
-            var config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-            string baseApi = config["BaseApi"] ?? string.Empty;
-            string apiKey = config["ApiKey"] ?? string.Empty;
+            string apiKey = "cpqjlshr01qo647no9r0cpqjlshr01qo647no9rg";
+            string apiUrl = $"https://finnhub.io/api/v1/quote?symbol={ticker}&token={apiKey}";
 
-            // Load currency data
-            Console.WriteLine("Loading data...");
-            var loader = new CurrencyLoader(baseApi, apiKey);
-            var converter = await loader.LoadCurrencyDataAsync();
-                        
-            // Run program
-            bool carryOn = true;
-            while (carryOn)
+            using (HttpClient client = new HttpClient())
             {
-                Console.WriteLine("Please enter: ");
-                Console.WriteLine("1. For a list of available currencies");
-                Console.WriteLine("2. To perform a currency conversion");
-                Console.WriteLine("Any other key to quit");
-                string input = Console.ReadLine() ?? string.Empty;
-                if (input == "1")
+                var response = await client.GetAsync(apiUrl);
+                if (response.IsSuccessStatusCode)
                 {
-                    var details = converter.GetCurrencyData();
-                    details.ForEach(d => Console.WriteLine(d));
-                }
-                else if (input == "2")
-                {
-                    // Get currency codes
-                    Console.WriteLine("Please enter the currency code to convert from: ");
-                    string convertFrom = GetCurrencyCodeInput(converter);
-                    Console.WriteLine("Please enter the currency code to convert to: ");
-                    string convertTo = GetCurrencyCodeInput(converter);
-                    Console.WriteLine("Please enter the amount to convert: ");
-
-                    // Get amount
-                    string amountInput = Console.ReadLine()?.Trim() ?? string.Empty;
-                    decimal amount = 0;
-                    while (!decimal.TryParse(amountInput, out amount))
-                    {
-                        Console.WriteLine($"{amountInput} is not a amount. Please try again.");
-                        amountInput = Console.ReadLine()?.Trim() ?? string.Empty;
-                    }
-
-                    decimal convertedAmount = converter.Convert(convertFrom, convertTo, amount);
-                    Console.WriteLine($"{amount:N2} {convertFrom} is {convertedAmount:N2} {convertTo}");
+                    var json = await response.Content.ReadAsStringAsync();
+                    var StockInfo = JsonSerializer.Deserialize<StockInfo>(json);
+                    Console.WriteLine($"Current Price: {StockInfo.c}");
                 }
                 else
                 {
-                    carryOn = false;
+                    Console.WriteLine("Error fetching data");
                 }
-                Console.WriteLine();
             }
-
         }
+    }
 
-        private static string GetCurrencyCodeInput(CurrencyConverter converter)
-        {
-            string code = Console.ReadLine()?.Trim().ToUpper() ?? string.Empty;
-            while (!converter.CurrencyAvailable(code))
-            {
-                Console.WriteLine($"{code} is not a valid code. Please try again.");
-                code = Console.ReadLine()?.Trim().ToUpper() ?? string.Empty;
-            }
-            return code;
-        }
-
-
+    public class StockInfo
+    {
+        public float c { get; set; }
+        public float h { get; set; }
+        public float l { get; set; }
+        public float o { get; set; }
+        public float pc { get; set; }
     }
 }
-
